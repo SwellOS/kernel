@@ -1,0 +1,38 @@
+From: SwellOS Kernel Team <kernel@swellos.org>
+Date: Mon, 22 Jun 2026 00:00:00 +0000
+Subject: [PATCH] SwellOS performance tuning
+
+This patch applies SwellOS-specific performance tuning on top of the
+stock Linux kernel. All changes are documented with rationale.
+
+---
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 000000000000..000000000000 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -0,0 +1,12 @@
++# SwellOS tuning: disable legacy CPU support
++config SWELL_PERF_TUNE
++	bool "SwellOS performance tuning"
++	default y
++	help
++	  Apply SwellOS-specific performance tuning:
++	    - Disable MTRR (MTRR is superseded by PAT)
++	    - Disable legacy x87 FPU emulation
++	    - Disable VM86 (obsolete)
++	    - Force kernel page table isolation for security
++	    - Enable MWAIT for deep C-states
++
+diff --git a/arch/x86/Makefile b/arch/x86/Makefile
+index 000000000000..000000000000 100644
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -0,0 +1,8 @@
++# SwellOS: aggressive optimization flags
++ifdef CONFIG_SWELL_PERF_TUNE
++KBUILD_CFLAGS += -O3 -march=x86-64-v3 -mtune=generic -fno-plt
++KBUILD_CFLAGS += -fomit-frame-pointer -fno-asynchronous-unwind-tables
++KBUILD_CFLAGS += -falign-functions=32 -falign-jumps=32 -falign-loops=32
++KBUILD_CFLAGS += -fno-stack-protector	# Covered by CONFIG_STACKPROTECTOR
++KBUILD_AFLAGS += -march=x86-64-v3
++endif

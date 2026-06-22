@@ -1,0 +1,52 @@
+name: Check config
+on: [push, pull_request]
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check config format
+        run: |
+          # Verify basic config syntax
+          while IFS= read -r line; do
+            case "$line" in
+              CONFIG_*=y|CONFIG_*=n|CONFIG_*=\"*\"|CONFIG_*=[0-9]*)
+                ;;
+              \#*|"")
+                ;;
+              *)
+                echo "Suspicious line: $line"
+                ;;
+            esac
+          done < config/x86_64/config-6.x-swell
+      - name: Ensure no modules enabled
+        run: |
+          if grep -q '^CONFIG_MODULES=y' config/x86_64/config-6.x-swell; then
+            echo "ERROR: CONFIG_MODULES=y but kernel must be monolithic"
+            exit 1
+          fi
+          echo "Config check passed: no modules"
+      - name: Verify required options
+        run: |
+          REQUIRED=(
+            "CONFIG_PREEMPT=y"
+            "CONFIG_HZ_1000=y"
+            "CONFIG_NO_HZ=y"
+            "CONFIG_HIGH_RES_TIMERS=y"
+            "CONFIG_EXT4_FS=y"
+            "CONFIG_NVME_CORE=y"
+            "CONFIG_BLK_DEV_NVME=y"
+            "CONFIG_DRM_I915=y"
+            "CONFIG_DRM_AMDGPU=y"
+            "CONFIG_SND_HDA_INTEL=y"
+            "CONFIG_USB_XHCI_HCD=y"
+            "CONFIG_SECURITY=y"
+            "CONFIG_MITIGATION_PAGE_TABLE_ISOLATION=y"
+          )
+          for opt in "${REQUIRED[@]}"; do
+            if ! grep -q "^${opt}$" config/x86_64/config-6.x-swell; then
+              echo "MISSING: $opt"
+              exit 1
+            fi
+          done
+          echo "All required options present"
